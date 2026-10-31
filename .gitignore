@@ -1,0 +1,13 @@
+# Provenance: created 2026-10-30T11:53:53+02:00 by Claude Fable 5.1 (claude-fable-5-1, Anthropic). Steward: Leonid (brief). Model: implementation.
+# Rendered audio and scratch output
+out/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+
+# Local, per-machine Claude settings
+.claude/settings.local.json

@@ -1,0 +1,22 @@
+# Provenance: created 2026-10-30T11:49:25+02:00 by Claude Fable 5.1 (claude-fable-5-1, Anthropic).
+# Steward: Leonid (attribution requirement, review). Model: drafting.
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below and keep the attribution that CC BY 4.0 requires."
+title: "Vestacore Music: a human–AI research studio for sound, harmony and light"
+type: software
+authors:
+  - name: "Leonid (the Steward)"
+    # given-names, family-names and orcid to be completed by the Steward before publication
+  - name: "Claude Fable 5.1 (claude-fable-5-1), Anthropic"
+    # AI model; its contributions are recorded per artefact in PROVENANCE.md
+license: CC-BY-4.0
+date-released: "2026-10-30"
+version: "0.1.0"
+keywords:
+  - harmony
+  - harmonics
+  - additive synthesis
+  - web audio
+  - light dynamics
+  - human-AI collaboration
+# repository-code: "https://github.com/<owner>/<repository>"   # add on publication

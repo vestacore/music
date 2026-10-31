@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Techno UI</title>
+<!--
+  Provenance
+    created:     2026-10-30T12:15:39+02:00
+    model:       Claude Fable 5.1 (claude-fable-5-1, Anthropic)
+    steward:     Leonid: the track-to-page base, the brief ("a techno image with shader backing"), review
+    model_role:  design and implementation (page, controls, vertex and fragment shaders)
+    revisions:   none yet
+  Licence: CC BY 4.0 (see LICENCE at the repository root). Part of Vestacore Music, session 002.
+-->
+<style>
+  :root {
+    --fg: #ebe8e0;
+    --muted: #8b8f99;
+    --line: rgba(255, 255, 255, 0.10);
+    --panel: rgba(255, 255, 255, 0.04);
+    --accent: hsl(212 78% 56%);
+    --half-beat: 4px;
+    --beat: 8px;
+    --bar: 32px;
+    --phrase: 64px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #09090b; color: var(--fg); font: 14px/1.45 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: var(--beat) 24px; display: flex; gap: 16px; align-items: baseline; flex-wrap: wrap; }
+  header h1 { margin: 0; font-size: 17px; font-weight: 600; }
+  header p { margin: 0; color: var(--muted); font-size: 13px; }
+  .stage { position: relative; height: 560px; min-width: 960px; margin: 0 24px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #09090b; }
+  canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .labels { position: absolute; inset: 0; pointer-events: none; }
+  .label { position: absolute; display: flex; align-items: center; padding: 0 var(--beat); white-space: nowrap; overflow: hidden; font-size: 13px; color: var(--fg); opacity: 0; }
+  .label.layer-state { font-size: 15px; padding: 0; }
+  .label.layer-lead { color: #0c0c10; font-weight: 600; justify-content: center; }
+  .label.layer-bass { padding: 0; }
+  .label.layer-hat { font-size: 11px; color: var(--muted); padding: 0; }
+  .label.layer-pad { align-items: flex-start; padding: 10px 12px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; }
+  .label.layer-link { font-size: 12px; color: var(--muted); padding: 0; }
+  .deck { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 16px 24px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+  .deck label { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  input[type=range] { width: 110px; accent-color: var(--accent); }
+  input[type=checkbox] { accent-color: var(--accent); }
+  output { font-variant-numeric: tabular-nums; min-width: 32px; }
+  button { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  button.on { background: var(--accent); color: #0c0c10; border-color: transparent; }
+  .readout { font-variant-numeric: tabular-nums; min-width: 200px; }
+  .readout b { font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; font-size: 12px; color: var(--accent); }
+  .gates { display: flex; gap: 8px; flex-wrap: wrap; }
+  .gate { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+  .gate.ok { border-color: rgba(120, 200, 140, 0.5); color: #9fd8ab; }
+  .gate.fail { border-color: rgba(230, 90, 90, 0.7); color: #f08a8a; }
+  .legend { margin: 0 24px 24px; color: var(--muted); font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; max-width: 980px; }
+  th, td { text-align: left; padding: 6px 14px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--fg); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; }
+  td:first-child { color: var(--fg); }
+  .error { margin: 16px 24px; padding: 12px 16px; border: 1px solid rgba(230, 90, 90, 0.6); border-radius: 8px; color: #f08a8a; display: none; white-space: pre-wrap; font: 12px ui-monospace, Menlo, monospace; }
+  footer { padding: 8px 24px 20px; color: var(--muted); font-size: 12px; }
+  footer code { font-size: 11px; }
+  kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Techno UI</h1>
+  <p>The page as a techno track: a synthesised loop drives a fragment shader that draws an Action page on the beat grid. Session 002.</p>
+</header>
+
+<div class="stage" id="stage">
+  <canvas id="gl"></canvas>
+  <div class="labels" id="labels"></div>
+</div>
+<div class="error" id="error"></div>
+
+<section class="deck">
+  <button id="power" type="button" aria-pressed="false">Start</button>
+  <div class="readout"><b id="section">intro</b> · <span id="bar">bar 1 of 32</span></div>
+  <label>tempo <input id="tempo" type="range" min="120" max="136" step="1" value="128"> <output id="tempoOut">128</output></label>
+  <label>swing <input id="swing" type="range" min="0" max="33" step="1" value="8"> <output id="swingOut">8%</output></label>
+  <label><input type="checkbox" data-layer="lead" checked> lead</label>
+  <label><input type="checkbox" data-layer="bass" checked> bass</label>
+  <label><input type="checkbox" data-layer="hat" checked> hat</label>
+  <label><input type="checkbox" data-layer="pad" checked> pad</label>
+  <label><input type="checkbox" id="clash"> clash</label>
+  <div class="gates">
+    <span class="gate" id="gateGrid">beat grid</span>
+    <span class="gate" id="gateLead">one lead</span>
+    <span class="gate" id="gateMask">masking</span>
+    <span class="gate" id="gateBudget">budget</span>
+  </div>
+</section>
+
+<section class="legend">
+  <table>
+    <thead><tr><th>Layer</th><th>In the track</th><th>On the page</th><th>In the image</th></tr></thead>
+    <tbody>
+      <tr><td>kick</td><td>the pulse on every beat</td><td>the 8 px grid itself</td><td>the grid lines pulse; everything but the lead ducks</td></tr>
+      <tr><td>lead</td><td>one stab per phrase</td><td>the one decision button</td><td>the only accent; it glows and casts light; it never ducks</td></tr>
+      <tr><td>bass</td><td>the rolling line between the kicks</td><td>rows of one shape</td><td>the rows brighten on each note; a sixteenth scan runs along them</td></tr>
+      <tr><td>hat</td><td>the ticking top end</td><td>meta and captions</td><td>small marks flicker</td></tr>
+      <tr><td>pad</td><td>the wash underneath</td><td>the right column</td><td>surfaces breathe; no edges</td></tr>
+    </tbody>
+  </table>
+  <p><kbd>Space</kbd> start or stop · <strong>clash</strong> puts a second decision beside the first and a second lead four hertz off: hear the beating, see the interference, watch the gates fail.</p>
+</section>
+
+<footer>Created 2026-10-30T12:15:39+02:00 by Claude Fable 5.1 (<code>claude-fable-5-1</code>, Anthropic). Steward: Leonid (the track-to-page base, the brief, review). Model: design and implementation. Licence CC BY 4.0. Part of <em>Vestacore Music</em>, session 002.</footer>
+
+<script id="vert" type="x-shader/x-vertex">
+attribute vec2 a_pos;
+void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
+</script>
+
+<script id="frag" type="x-shader/x-fragment">
+// The page as a techno track: every block is drawn by its layer, and every layer moves with the sound.
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+
+uniform vec2  u_res;      // canvas size in device pixels
+uniform float u_dpr;
+uniform vec2  u_origin;   // page origin in CSS pixels
+uniform float u_time;
+uniform float u_pos;      // position in the loop, in bars
+uniform float u_hue;      // accent hue in degrees
+uniform float u_kick;
+uniform float u_hat;
+uniform float u_ohat;
+uniform float u_bass;
+uniform float u_lead;
+uniform float u_pad;
+uniform float u_duck;     // the sidechain gain: 1 is open
+uniform float u_riser;
+uniform float u_clash;
+uniform float u_grid;     // how much the kick is in the arrangement
+uniform int   u_count;
+uniform vec4  u_rect[24]; // x, y, width, height in CSS pixels from the page origin
+uniform float u_layer[24];
+uniform float u_alpha[24];
+
+const float PAGE_H = 480.0;
+
+vec3 hsl2rgb(vec3 c) {
+  vec3 rgb = clamp(abs(mod(c.x * 6.0 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+  return c.z + c.y * (rgb - 0.5) * (1.0 - abs(2.0 * c.z - 1.0));
+}
+
+float inRect(vec2 p, vec4 r) {
+  vec2 a = step(r.xy, p);
+  vec2 b = step(p, r.xy + r.zw);
+  return a.x * a.y * b.x * b.y;
+}
+
+float distRect(vec2 p, vec4 r) {
+  vec2 d = abs(p - (r.xy + r.zw * 0.5)) - r.zw * 0.5;
+  return length(max(d, 0.0));
+}
+
+float lineAt(float v, float period) {
+  float m = mod(v, period);
+  float d = min(m, period - m);
+  return 1.0 - smoothstep(0.3, 1.0, d);
+}
+
+void main() {
+  vec2 p = vec2(gl_FragCoord.x, u_res.y - gl_FragCoord.y) / u_dpr - u_origin;
+  vec3 accent = hsl2rgb(vec3(u_hue / 360.0, 0.78, 0.56));
+  vec3 ink = vec3(0.92, 0.91, 0.88);
+  vec3 col = vec3(0.035, 0.036, 0.042);
+
+  // pad: the wash under everything
+  float wash = 0.5 + 0.5 * sin(u_time * 0.25 + p.x * 0.003 + p.y * 0.002);
+  col += accent * (0.02 + 0.05 * wash) * u_pad;
+
+  // kick: the grid, pulsing on every beat
+  float gBeat   = max(lineAt(p.x, 8.0),  lineAt(p.y, 8.0));
+  float gBar    = max(lineAt(p.x, 32.0), lineAt(p.y, 32.0));
+  float gPhrase = max(lineAt(p.x, 64.0), lineAt(p.y, 64.0));
+  float grid = gBeat * 0.035 + gBar * 0.045 + gPhrase * 0.06;
+  grid *= 0.35 + 0.65 * u_kick * u_grid + 0.4 * u_riser;
+  col += ink * grid;
+
+  // the blocks: the last one that contains the pixel wins
+  float layer = 0.0;
+  float alpha = 0.0;
+  vec4 rect = vec4(0.0);
+  float leadGlow = 0.0;
+  for (int i = 0; i < 24; i++) {
+    if (i >= u_count) break;
+    float a = u_alpha[i];
+    if (a <= 0.002) continue;
+    if (u_layer[i] == 2.0) leadGlow += a * exp(-distRect(p, u_rect[i]) / 20.0);
+    if (inRect(p, u_rect[i]) > 0.5) { layer = u_layer[i]; alpha = a; rect = u_rect[i]; }
+  }
+
+  float duck = mix(1.0, u_duck, 0.75);
+  float bottom = step(rect.y + rect.w - 2.0, p.y);   // the last two pixels of a block
+
+  if (layer == 1.0) {                                 // state: one line, underlined
+    col = mix(col, ink * 0.7, alpha * bottom);
+  } else if (layer == 2.0) {                          // lead: the one accent; it does not duck
+    col = mix(col, accent, alpha);
+    col += accent * 0.45 * u_lead * alpha;
+  } else if (layer == 3.0) {                          // bass: rows of one shape
+    float seg = floor((p.x - rect.x) / rect.z * 16.0);
+    float cur = floor(fract(u_pos) * 16.0);
+    float scan = (abs(seg - cur) < 0.5) ? 0.12 : 0.0;
+    col = mix(col, ink, alpha * (0.08 + 0.22 * u_bass + scan) * duck);
+    col = mix(col, ink * 0.6, alpha * bottom * duck);
+  } else if (layer == 4.0) {                          // hat: meta, ticking
+    col = mix(col, ink * 0.6, alpha * (0.06 + 0.3 * u_hat + 0.25 * u_ohat) * duck);
+  } else if (layer == 5.0) {                          // pad: surfaces without edges
+    col = mix(col, col + accent * 0.10 + ink * 0.04, alpha * (0.5 + 0.5 * u_pad) * duck);
+  } else if (layer == 6.0) {                          // links: quiet, underlined
+    col = mix(col, ink * 0.45, alpha * bottom * duck);
+  }
+
+  // the light the lead casts
+  col += accent * leadGlow * (0.05 + 0.3 * u_lead);
+
+  // clash: two leads in one band interfere
+  if (u_clash > 0.0) {
+    float s1 = 0.5 + 0.5 * sin(p.x * 1.10);
+    float s2 = 0.5 + 0.5 * sin(p.x * 1.17 + u_time * 8.0);
+    col += accent * u_clash * 0.35 * s1 * s2 * leadGlow;
+  }
+
+  // riser: a scan line climbs the page before the drop
+  if (u_riser > 0.0) {
+    float y = (1.0 - u_riser) * PAGE_H;
+    col += accent * u_riser * 0.12 * (1.0 - smoothstep(0.0, 24.0, abs(p.y - y)));
+  }
+
+  gl_FragColor = vec4(col, 1.0);
+}
+</script>
+
+<script src="techno.js"></script>
+</body>
+</html>
